@@ -24,7 +24,8 @@ pipeline {
         stage('Create Virtual Environment') {
             steps {
                 bat '%PYTHON% -m venv %VENV%'
-                bat '%VENV%\\Scripts\\pip install --upgrade pip'
+                bat '%VENV%\\Scripts\\python -m pip install --upgrade pip'
+
             }
         }
 
