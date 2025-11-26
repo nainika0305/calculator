@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = "nainika0305/calculator:jenkins"
+       IMAGE = "nainika7777/calculator:jenkins"
         VENV = ".venv"
         PYTHON = "python" 
     }
