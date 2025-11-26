@@ -2,45 +2,71 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'your_dockerhub_username'
-        DOCKERHUB_PASS = credentials('dockerhub-pass')
-        IMAGE_NAME = 'your_dockerhub_username/calculator'
+        IMAGE = "nainika0305/calculator:jenkins"
+        VENV = ".venv"
+        PYTHON = "python" 
     }
 
     stages {
-        stage('Pull Code') {
+
+        stage('Checkout') {
             steps {
-                git 'https://github.com/your-username/ci-cd-calculator.git'
+                checkout([$class: 'GitSCM',
+                  branches: [[name: '*/main']],
+                  userRemoteConfigs: [[
+                    url: 'https://github.com/nainika0305/calculator',
+                    credentialsId: 'github-creds'
+                  ]]
+                ])
+            }
+        }
+
+        stage('Create Virtual Environment') {
+            steps {
+                bat '%PYTHON% -m venv %VENV%'
+                bat '%VENV%\\Scripts\\pip install --upgrade pip'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'pip install -r requirements.txt'
+                bat '%VENV%\\Scripts\\pip install -r requirements.txt'
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh 'pytest'
+                bat '%VENV%\\Scripts\\pytest -v'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME .'
+                bat 'docker build -t %IMAGE% .'
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Push Docker Image') {
             steps {
-                sh 'echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
+                                                  usernameVariable: 'USER',
+                                                  passwordVariable: 'PASS')]) {
+                    bat '''
+                    echo %PASS% | docker login -u %USER% --password-stdin
+                    docker push %IMAGE%
+                    '''
+                }
             }
         }
 
-        stage('Push Image') {
+        stage('Deploy Container') {
             steps {
-                sh 'docker push $IMAGE_NAME'
+                bat '''
+                docker pull %IMAGE%
+                docker stop ci-cd-demo || exit 0
+                docker rm ci-cd-demo || exit 0
+                docker run -d -p 5000:5000 --name ci-cd-demo %IMAGE%
+                '''
             }
         }
     }
